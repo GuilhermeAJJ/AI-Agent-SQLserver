@@ -52,60 +52,41 @@ Abra o **PowerShell** (ou terminal) dentro da pasta onde estão os arquivos e ex
 ```bash
 docker compose up
 
-
-
- Acessos do Ambiente
-
+Acessos do Ambiente
 Após subir os serviços, acesse:
 
-Serviço	URL	Descrição
+Serviço	URL	Descrição:
+
 n8n	http://localhost:5678
 	Criação e configuração dos workflows
+
 Evolution API	http://localhost:8080
 	API para WhatsApp e integrações
-  Configuração do n8n
 
-Ao acessar o n8n pela primeira vez:
+Configuração do n8n:
+Ao acessar o n8n pela primeira vez
+Preencha as informações iniciais, utilize um e-mail válido.
+Você receberá uma KEY de ativação, insira a KEY para liberar os Community Nodes.
+Ambiente pronto para uso .
 
-Preencha as informações iniciais.
-
-Utilize um e-mail válido.
-
-Você receberá uma KEY de ativação.
-
-Insira a KEY para liberar os Community Nodes.
-
-Ambiente pronto para uso 
-
- Configuração da Evolution API (WhatsApp)
-
+Configuração da Evolution API (WhatsApp)
 Para conectar:
-
 Acesse: http://localhost:8080
 
 Informe a API_KEY do arquivo .env.
-
 Gere o QR Code.
-
 Escaneie no WhatsApp.
-
 Conexão concluída
  
 Integração Evolution API → n8n
-
 Passos:
-
 Crie um node Webhook no n8n.
-
 Defina um path.
 
 Exemplo:
 /webhook/whatsapp-agent
-
 Configure na Evolution API:
-
 http://n8n:5678/webhook/whatsapp-agent
-
 Ative o workflow.
 
 Funcionalidades do Agente:
