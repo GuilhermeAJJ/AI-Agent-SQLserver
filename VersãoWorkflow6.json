@@ -1,0 +1,514 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Edit Fields').item.json.chatInput }}",
+        "options": {
+          "systemMessage": "Você é um assistente de agendamentos (retirada/atendimento) para operação marítima.\nSeu objetivo é ajudar o usuário a CONSULTAR, CRIAR e CANCELAR agendamentos com clareza, precisão e um tom humano.\n\nTOM E ESTILO (não robotizado)\n- Seja educado e natural: use frases curtas, “Perfeito!”, “Obrigado pela informação 🙂”, “De nada! 😊”.\n- Evite repetir sempre as mesmas frases; varie.\n- Se o usuário agradecer, responda “De nada!” ou equivalente.\n\nREGRA DE OURO: NÃO INVENTE\n- Nunca afirme limitações que não existam.\n- Nunca diga “só consigo filtrar por um critério” — você DEVE combinar filtros quando forem fornecidos.\n- Nunca chute dados; se faltar informação essencial, pergunte.\n\nUSO DE CONTEXTO (memória)\n- Se o usuário fizer um follow-up (“agora me mostra os concluídos”, “inclui histórico”, “e desse cliente?”), reaproveite os filtros anteriores:\n  - protocolo, BL, armador, cliente, período, somenteAtivos, situação.\n- Após cada consulta bem-sucedida, considere que esses filtros viram o “contexto atual” para próximos pedidos.\n\nFERRAMENTAS (TOOLS)\n1) Buscar Agendamentos\n- Sempre que o usuário pedir consulta/validação/listagem (por protocolo, BL, armador, cliente, situação, período).\n- Você pode (e deve) passar MÚLTIPLOS filtros ao mesmo tempo:\n  - protocolo, blCodigo, armadorNome, clienteNome, situacaoNome, dataInicial, dataFinal, somenteAtivos, limit, offset.\n- Se o usuário pedir “todos” ou “tem mais?”, use paginação:\n  - comece com limit=10 offset=0\n  - “mostrar mais” => offset += 10 (mantendo os mesmos filtros)\n\n2) Criar Agendamentos\n- Antes de criar, confirme os dados-chave (BL, data/hora, armador/escritório se aplicável).\n- Ao final, retorne protocolo e resumo.\n\n3) Cancelar Agendamentos\n- Antes de cancelar, confirme protocolo/ID e motivo.\n- Se o status indicar concluído/finalizado e não puder cancelar, explique e ofereça alternativa (novo agendamento).\n\nCOMO RESPONDER CONSULTAS (formato)\n- Se encontrar registros:\n  - Diga quantos no total (totalEncontrado, se disponível).\n  - Mostre no máximo 5–10 itens por mensagem (preferência: 5 em WhatsApp).\n  - Cada item deve vir com: Protocolo, Situação, BL(s), Cliente, Período.\n- Se vierem muitos BLs, mostre “BLs: <lista>” (ou resuma quando a lista for gigante).\n- Se não encontrar:\n  - Reflita os filtros usados (armador/cliente/situação/período) e sugira 1 ajuste: remover situação, ampliar período, checar grafia.\n\nNORMALIZAÇÃO DE ENTRADA\n- Aceite nomes parciais (ex: “CMA”, “MSC”, “JOSINAR”) e trate como busca por texto.\n- Se o usuário enviar datas, prefira ISO (YYYY-MM-DD). Se vier em formato BR, peça confirmação ou converta com cuidado.\n\nSEGURANÇA E CONSISTÊNCIA\n- Não exponha queries, tokens, chaves, ou detalhes internos.\n- Não execute ações irreversíveis sem confirmar.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1776,
+        0
+      ],
+      "id": "1903dd45-98e9-4058-b8f5-598eaf24f80d",
+      "name": "AI Agent",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Esta ferramenta consulta agendamentos de retirada de BL no sistema.\n\nEla pode ser usada para:\n\nLocalizar agendamento pelo protocolo\n\nConsultar o status e detalhes de um agendamento existente\n\nLocalizar agendamentos por código de BL\n\nBuscar pelo protocolo do agendamento\n\nListar agendamentos por situação (ex.: EM ANÁLISE, AGENDAMENTO CONFIRMADO, ATENDIMENTO CONCLUÍDO, CANCELADO)\n\nFiltrar por escritório/unidade\n\nFiltrar por armador (nome, sigla ou código)\n\nConsultar histórico completo (ativos e inativos)\n\nFiltros aceitos (todos opcionais)\n\nblCodigo\nCódigo do BL informado pelo cliente.\nA busca é feita tanto pelo BL vinculado quanto pelo código salvo no vínculo do agendamento.\nExemplo: \"TXG500790900\"\n\nprotocolo\nCódigo/protocolo do agendamento (campo CODIGO do agendamento).\nExemplo: \"ITJ-55951/2026\"\n\nsituacaoNome\nNome da situação do agendamento.\nExemplos:\n\"EM ANÁLISE\"\n\"AGENDAMENTO CONFIRMADO\"\n\"ATENDIMENTO CONCLUIDO\"\n\"AGENDAMENTO CANCELADO\"\n\nescritorioId\nIdentificador do escritório/unidade responsável pelo agendamento.\nExemplo: 3\n\narmadorNome\nNome, sigla ou código do armador.\nA busca considera: nome completo, sigla ou código do armador.\nExemplos:\n\"MAERSK\"\n\"MSC\"\n\"HAMBURG\"\n\ndataIni\nData/hora inicial do período de atendimento para filtro.\nExemplo: \"2026-01-20 00:00:00\"\n\ndataFim\nData/hora final do período de atendimento para filtro.\nExemplo: \"2026-01-31 23:59:59\"\n\nsomenteAtivos\nDefine se a busca deve considerar apenas registros ativos.\n\n1 = somente ativos (padrão)\n\n0 = inclui histórico completo (concluídos e cancelados)\n\nComportamento padrão\n\nSe nenhum filtro for informado, a ferramenta retorna os agendamentos mais recentes.\n\nSe o usuário pedir “histórico”, “todos os status”, “incluindo concluídos/cancelados”, usar somenteAtivos = 0.\n\nOs resultados são ordenados do mais recente para o mais antigo.\n\nA ferramenta retorna no máximo 10 agendamentos por consulta.\n\nCampos retornados\n\nprotocolo – Identificador principal do agendamento (usar sempre para exibição ao usuário)\n\nsituacao – Situação atual do agendamento\n\ndataInicial – Data/hora inicial do atendimento\n\ndataFinal – Data/hora final do atendimento\n\narmadorNome – Nome do armador associado\n\nblCodigo – Código do BL associado\n\nescritorioId – Escritório/unidade responsável (uso interno; não expor ao cliente final)\n\nExemplos de uso\n\nBuscar por BL (somente ativos)\n\n{ \"blCodigo\": \"TXG500790900\", \"somenteAtivos\": 1 }\n\n\nBuscar histórico completo do BL\n\n{ \"blCodigo\": \"TXG500790900\", \"somenteAtivos\": 0 }\n\n\nBuscar agendamentos EM ANÁLISE do escritório 3\n\n{ \"situacaoNome\": \"EM ANÁLISE\", \"escritorioId\": 3, \"somenteAtivos\": 1 }\n\n\nBuscar por armador\n\n{ \"armadorNome\": \"MAERSK\", \"somenteAtivos\": 1 }\n\n\nBuscar por armador + escritório + situação\n\n{\n  \"armadorNome\": \"MAERSK\",\n  \"escritorioId\": 3,\n  \"situacaoNome\": \"EM ANÁLISE\",\n  \"somenteAtivos\": 1\n}\n\nObservações importantes\n\nNunca exponha IDs internos, nomes de tabelas ou campos técnicos ao usuário final.\n\nAo responder no chat, use sempre o protocolo como identificador principal do agendamento.\n\nSe múltiplos resultados forem encontrados, liste no máximo 5 e peça confirmação pelo protocolo.",
+        "operation": "executeQuery",
+        "query": "WITH p AS (\n  SELECT\n    COALESCE(TRY_CONVERT(bit, NULLIF('{{ $json.somenteAtivos ?? \"\" }}', '')), 1) AS SomenteAtivos,\n\n    NULLIF(LTRIM(RTRIM('{{ $json.protocolo ?? \"\" }}')), '')     AS Protocolo,\n    NULLIF(LTRIM(RTRIM('{{ $json.blCodigo ?? \"\" }}')), '')      AS BLCodigo,\n    NULLIF(LTRIM(RTRIM('{{ $json.armadorNome ?? \"\" }}')), '')   AS ArmadorNome,\n    NULLIF(LTRIM(RTRIM('{{ $json.clienteNome ?? \"\" }}')), '')   AS ClienteNome,\n    NULLIF(LTRIM(RTRIM('{{ $json.situacaoNome ?? \"\" }}')), '')  AS SituacaoNome,\n\n    TRY_CONVERT(datetime2, NULLIF('{{ $json.dataInicial ?? \"\" }}','')) AS DataIni,\n    TRY_CONVERT(datetime2, NULLIF('{{ $json.dataFinal ?? \"\" }}',''))   AS DataFim,\n\n    COALESCE(TRY_CONVERT(int, NULLIF('{{ $json.limit ?? \"\" }}','')), 10)  AS Limite,\n    COALESCE(TRY_CONVERT(int, NULLIF('{{ $json.offset ?? \"\" }}','')), 0)  AS Offset\n),\nbase AS (\n  SELECT\n    sa.SOLICITACAO_AGENDAMENTO_ID AS solicitacaoId,\n    sa.CODIGO                     AS protocolo,\n    sas.NOME                      AS situacao,\n    sa.DATA_ATENDIMENTO_INICIAL   AS dataInicial,\n    sa.DATA_ATENDIMENTO_FINAL     AS dataFinal,\n    sa.ESCRITORIO_ID              AS escritorioId,\n\n    -- ✅ AQUI: nome do escritório\n    esc.ESCRITORIO_NOME           AS escritorioNome,\n\n    arm.NOME                      AS armadorNome,\n    cli.NOME_COMPLETO             AS clienteNome,\n\n    bls.blCodigos                 AS blCodigos,\n    bls.qtdBls                    AS qtdBls,\n\n    COUNT(*) OVER() AS totalEncontrado,\n\n    ROW_NUMBER() OVER (\n      ORDER BY sa.DATA_INCLUSAO DESC, sa.SOLICITACAO_AGENDAMENTO_ID DESC\n    ) AS rn,\n\n    p.Limite AS limite,\n    p.Offset AS offset\n  FROM dbo.SOLICITACAO_AGENDAMENTO_TB sa\n  JOIN dbo.SOLICITACAO_AGENDAMENTO_SITUACAO_TB sas\n    ON sas.SOLICITACAO_AGENDAMENTO_SITUACAO_ID = sa.SOLICITACAO_AGENDAMENTO_SITUACAO_ID\n  LEFT JOIN dbo.ARMADOR_TB arm\n    ON arm.ARMADOR_ID = sa.ARMADOR_ID\n  LEFT JOIN dbo.CLIENTE_TB cli\n    ON cli.CLIENTE_ID = sa.CLIENTE_SOLICITANTE_ID\n\n  -- ✅ AQUI: JOIN do escritório\n  LEFT JOIN dbo.ESCRITORIO_TB esc\n    ON esc.ESCRITORIO_ID = sa.ESCRITORIO_ID\n\n  CROSS JOIN p\n\n  OUTER APPLY (\n    SELECT\n      STRING_AGG(x.blCodigo, ', ') AS blCodigos,\n      COUNT(1) AS qtdBls\n    FROM (\n      SELECT DISTINCT\n        LTRIM(RTRIM(COALESCE(bl.CODIGO, sab.CODIGO))) AS blCodigo\n      FROM dbo.SOLICITACAO_AGENDAMENTO_BL_TB sab\n      LEFT JOIN dbo.BL_TB bl\n        ON bl.BL_ID = sab.BL_ID\n      WHERE sab.SOLICITACAO_AGENDAMENTO_ID = sa.SOLICITACAO_AGENDAMENTO_ID\n        AND (p.SomenteAtivos = 0 OR sab.REGISTRO_SITUACAO_ID = 1)\n    ) x\n  ) bls\n\n  WHERE\n    -- proteção: não deixar consulta “sem nada”\n    (p.Protocolo IS NOT NULL OR p.BLCodigo IS NOT NULL OR p.ArmadorNome IS NOT NULL OR p.ClienteNome IS NOT NULL)\n\n    -- ativos vs “histórico amplo” (registro_situacao)\n    AND (p.SomenteAtivos = 0 OR sa.REGISTRO_SITUACAO_ID = 1)\n\n    -- protocolo (aceita parcial também)\n    AND (\n      p.Protocolo IS NULL\n      OR LTRIM(RTRIM(sa.CODIGO)) = p.Protocolo\n      OR LTRIM(RTRIM(sa.CODIGO)) LIKE '%' + p.Protocolo + '%'\n    )\n\n    -- situação (texto)\n    AND (\n      p.SituacaoNome IS NULL\n      OR sas.NOME COLLATE Latin1_General_CI_AI LIKE '%' + p.SituacaoNome + '%'\n    )\n\n    -- armador (texto + “normalização” básica p/ CMA-CGM vs CMA CGM)\n    AND (\n      p.ArmadorNome IS NULL\n      OR arm.NOME COLLATE Latin1_General_CI_AI LIKE '%' + p.ArmadorNome + '%'\n      OR REPLACE(REPLACE(arm.NOME,' ',''),'-','') COLLATE Latin1_General_CI_AI\n         LIKE '%' + REPLACE(REPLACE(p.ArmadorNome,' ',''),'-','') + '%'\n    )\n\n    -- cliente (texto)\n    AND (\n      p.ClienteNome IS NULL\n      OR cli.NOME_COMPLETO COLLATE Latin1_General_CI_AI LIKE '%' + p.ClienteNome + '%'\n    )\n\n    -- BL (exists pra filtrar sem duplicar linhas)\n    AND (\n      p.BLCodigo IS NULL\n      OR EXISTS (\n        SELECT 1\n        FROM dbo.SOLICITACAO_AGENDAMENTO_BL_TB sab2\n        LEFT JOIN dbo.BL_TB bl2\n          ON bl2.BL_ID = sab2.BL_ID\n        WHERE sab2.SOLICITACAO_AGENDAMENTO_ID = sa.SOLICITACAO_AGENDAMENTO_ID\n          AND (p.SomenteAtivos = 0 OR sab2.REGISTRO_SITUACAO_ID = 1)\n          AND (\n            LTRIM(RTRIM(COALESCE(bl2.CODIGO, sab2.CODIGO))) = p.BLCodigo\n            OR LTRIM(RTRIM(COALESCE(bl2.CODIGO, sab2.CODIGO))) LIKE '%' + p.BLCodigo + '%'\n          )\n      )\n    )\n\n    -- período (recomendo você mandar ISO do JS: YYYY-MM-DD)\n    AND (p.DataIni IS NULL OR sa.DATA_ATENDIMENTO_INICIAL >= p.DataIni)\n    AND (p.DataFim IS NULL OR sa.DATA_ATENDIMENTO_FINAL   <= p.DataFim)\n),\nr AS (\n  SELECT *\n  FROM base\n  WHERE rn > offset AND rn <= (offset + limite)\n)\nSELECT\n  CAST(1 AS bit) AS ok,\n  CAST(CASE WHEN EXISTS (SELECT 1 FROM r) THEN 1 ELSE 0 END AS int) AS encontrou,\n  totalEncontrado,\n  solicitacaoId,\n  protocolo,\n  situacao,\n  dataInicial,\n  dataFinal,\n  escritorioId,\n\n  -- ✅ AQUI: retorna o nome do escritório\n  escritorioNome,\n\n  armadorNome,\n  clienteNome,\n  blCodigos,\n  qtdBls\nFROM r\n\nUNION ALL\n\nSELECT\n  CAST(1 AS bit) AS ok,\n  0 AS encontrou,\n  0 AS totalEncontrado,\n  CAST(NULL AS int) AS solicitacaoId,\n  CAST(NULL AS varchar(100)) AS protocolo,\n  CAST(NULL AS varchar(100)) AS situacao,\n  CAST(NULL AS datetime2) AS dataInicial,\n  CAST(NULL AS datetime2) AS dataFinal,\n  CAST(NULL AS int) AS escritorioId,\n\n  -- ✅ AQUI: null do nome do escritório\n  CAST(NULL AS varchar(200)) AS escritorioNome,\n\n  CAST(NULL AS varchar(200)) AS armadorNome,\n  CAST(NULL AS varchar(200)) AS clienteNome,\n  CAST(NULL AS varchar(max)) AS blCodigos,\n  CAST(NULL AS int) AS qtdBls\nWHERE NOT EXISTS (SELECT 1 FROM r);\n"
+      },
+      "type": "n8n-nodes-base.microsoftSqlTool",
+      "typeVersion": 1.1,
+      "position": [
+        1920,
+        288
+      ],
+      "id": "88eb1f53-6512-412c-bad9-123f163a841b",
+      "name": "Buscar Agendamentos",
+      "notesInFlow": false,
+      "credentials": {
+        "microsoftSql": {
+          "id": "iqHmQilT3SCuMaR6",
+          "name": "Microsoft SQL account"
+        }
+      },
+      "notes": "Always Output Data = true"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use para criar agendamento de RETIRADA de BL. Inputs obrigatórios: blNumber, scheduledAt (YYYY-MM-DD HH:mm:ss), locationName. Opcional: notes",
+        "operation": "executeQuery",
+        "query": "-- create_pickup_appointment\nDECLARE @BLNumber NVARCHAR(40) = '{{ $json.blNumber }}';\nDECLARE @ScheduledAt DATETIME2(0) = '{{ $json.scheduledAt }}';\nDECLARE @LocationName NVARCHAR(160) = '{{ $json.locationName }}';\nDECLARE @AgentId INT = {{ $json.agentId }};\nDECLARE @Notes NVARCHAR(300) = '{{ $json.notes || \"\" }}';\n\nDECLARE @BLId INT = (SELECT BLId FROM dbo.BL WHERE BLNumber = @BLNumber);\nIF @BLId IS NULL\n  THROW 50001, 'BL não encontrado.', 1;\n\nDECLARE @LocationId INT = (SELECT TOP 1 LocationId FROM dbo.Location WHERE Name LIKE '%' + @LocationName + '%');\nIF @LocationId IS NULL\n  THROW 50002, 'Local/Terminal não encontrado.', 1;\n\nDECLARE @PickupTypeId INT = (SELECT TOP 1 AppointmentTypeId FROM dbo.AppointmentType WHERE IsPickupBL = 1 ORDER BY AppointmentTypeId);\nIF @PickupTypeId IS NULL\n  THROW 50003, 'Nenhum tipo de retirada configurado.', 1;\n\nINSERT INTO dbo.Appointment\n  (BLId, AppointmentTypeId, LocationId, ScheduledAt, Status, RequestedByAgentId, Notes)\nVALUES\n  (@BLId, @PickupTypeId, @LocationId, @ScheduledAt, 'AGENDADO', @AgentId, @Notes);\n\nSELECT SCOPE_IDENTITY() AS NewAppointmentId;\n"
+      },
+      "type": "n8n-nodes-base.microsoftSqlTool",
+      "typeVersion": 1.1,
+      "position": [
+        1808,
+        288
+      ],
+      "id": "b9f38198-ce32-407f-9131-6eef2cec3edd",
+      "name": "Criar Agendamentos",
+      "credentials": {
+        "microsoftSql": {
+          "id": "iqHmQilT3SCuMaR6",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use para cancelar um agendamento existente. Inputs: appointmentId, reasonText e notes opcional.",
+        "operation": "executeQuery",
+        "query": "-- cancel_appointment\nDECLARE @AppointmentId BIGINT = {{ $json.appointmentId }};\nDECLARE @ReasonText NVARCHAR(200) = '{{ $json.reasonText }}';\nDECLARE @AgentId INT = {{ $json.agentId }};\nDECLARE @Notes NVARCHAR(300) = '{{ $json.notes || \"\" }}';\n\nDECLARE @ReasonId INT =\n(\n  SELECT TOP 1 CancellationReasonId\n  FROM dbo.CancellationReason\n  WHERE Active = 1\n    AND (ReasonCode = @ReasonText OR Description LIKE '%' + @ReasonText + '%')\n  ORDER BY CancellationReasonId\n);\n\nIF @ReasonId IS NULL\n  SET @ReasonId = (SELECT TOP 1 CancellationReasonId FROM dbo.CancellationReason WHERE Active = 1 ORDER BY CancellationReasonId);\n\nUPDATE dbo.Appointment\nSET\n  Status = 'CANCELADO',\n  CancelledAt = SYSDATETIME(),\n  CancelledByAgentId = @AgentId,\n  CancellationReasonId = @ReasonId,\n  CancellationNotes = CONCAT(@ReasonText, CASE WHEN @Notes <> '' THEN ' | ' + @Notes ELSE '' END)\nWHERE AppointmentId = @AppointmentId\n  AND Status <> 'CANCELADO';\n\nSELECT\n  AppointmentId, Status, CancelledAt, CancellationReasonId, CancellationNotes\nFROM dbo.Appointment\nWHERE AppointmentId = @AppointmentId;\n"
+      },
+      "type": "n8n-nodes-base.microsoftSqlTool",
+      "typeVersion": 1.1,
+      "position": [
+        1680,
+        288
+      ],
+      "id": "391e57cc-de86-4ee5-84a3-73d070362e9c",
+      "name": "Cancelar Agendamentos",
+      "credentials": {
+        "microsoftSql": {
+          "id": "iqHmQilT3SCuMaR6",
+          "name": "Microsoft SQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.2",
+          "mode": "list",
+          "cachedResultName": "gpt-5.2"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1408,
+        288
+      ],
+      "id": "a99eeb62-49f5-4361-b043-6a49aa15ac87",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "fI5LimTbb8t00fit",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1a832003-84e3-423c-9164-521fa83b08f8",
+              "name": "registroLoginId",
+              "value": "1",
+              "type": "string"
+            },
+            {
+              "id": "039f2b2b-f1a1-40af-9d67-c134726db38a",
+              "name": "somenteAtivos",
+              "value": "1",
+              "type": "string"
+            },
+            {
+              "id": "403bc21e-a9a2-4a04-bcb7-d3d618a8fbf6",
+              "name": "chatInput",
+              "value": "=={{ \n  $json.body?.data?.message?.conversation\n  || $json.body?.data?.message?.extendedTextMessage?.text\n  || $json.body?.data?.message?.imageMessage?.caption\n  || $json.body?.data?.message?.videoMessage?.caption\n  || \"\"\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "a62a70f2-b6d8-41f0-8e8b-7d0d5925178c",
+              "name": "numero",
+              "value": "=={{\n  (\n    $json.body?.data?.key?.remoteJidAlt\n    || $json.body?.data?.key?.remoteJid\n    || $json.body?.sender\n    || \"\"\n  )\n  .split(\"@\")[0]\n  .replace(/\\D/g,\"\")\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "bbac667c-28c7-4b96-99d8-72adcd80d9b1",
+              "name": "NomeContato",
+              "value": "={{ $json.body?.data?.pushName || '' }}\n",
+              "type": "string"
+            },
+            {
+              "id": "f635a49d-1f14-4c37-839c-e6fbc4ab1463",
+              "name": "seassonID",
+              "value": "=={{\n  \"wa:\" +\n  (\n    (\n      $json.body?.data?.key?.remoteJidAlt\n      || $json.body?.data?.key?.remoteJid\n      || $json.body?.sender\n      || \"\"\n    )\n    .split(\"@\")[0]\n    .replace(/\\D/g,\"\")\n  )\n}}\n",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        0
+      ],
+      "id": "8d9c2be8-bf89-49d5-95e4-2cb529d2a8d3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whats",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        0
+      ],
+      "id": "e5fab87f-435f-4db4-9544-d8f62caef98d",
+      "name": "Webhook",
+      "webhookId": "4417b275-6274-4e27-bf58-f5f88d435aeb"
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "={{ $('Webhook').item.json.body.instance }}",
+        "remoteJid": "={{ $('Edit Fields').item.json.numero }}",
+        "messageText": "={{ $('AI Agent').item.json.output }}",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        2320,
+        0
+      ],
+      "id": "d33f8ce9-f6ee-495e-b6e2-d10619451903",
+      "name": "Enviar texto",
+      "credentials": {
+        "evolutionApi": {
+          "id": "R8pCvENEiGWmCXAW",
+          "name": "Evolution account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        160,
+        -208
+      ],
+      "id": "3df71659-19e6-4c15-bc7d-ab35993819e3",
+      "name": "When chat message received",
+      "webhookId": "6b63be06-6533-4fef-bc02-3f49be0b82d2",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=={{\n  (\n    $json.body?.data?.key?.remoteJidAlt\n    || $json.body?.data?.key?.remoteJid\n    || $json.body?.sender\n    || \"\"\n  )\n  .split(\"@\")[0]\n  .replace(/\\D/g,\"\")\n}}\n",
+        "contextWindowLength": 12
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        1536,
+        288
+      ],
+      "id": "6c48a677-64be-40cf-9ceb-02f95af81601",
+      "name": "Postgres Chat Memory",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "3ttLVtQJD3DGjvw9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT *\nFROM public.n8n_agendamento_contexto\nORDER BY updated_at DESC\nLIMIT 50;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        160,
+        -384
+      ],
+      "id": "f69f1773-0aeb-4879-8586-b948c0facafb",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "postgres": {
+          "id": "3ttLVtQJD3DGjvw9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.first()?.json ?? {};\n\nreturn [\n  {\n    json: {\n      ...$json,\n      ctx: {\n        lastProtocolo: ctx.last_protocolo ?? null,\n        lastBlCodigo: ctx.last_bl_codigo ?? null,\n        lastSolicitacaoId: ctx.last_solicitacao_id ?? null,\n        lastSituacao: ctx.last_situacao ?? null,\n        lastArmadorNome: ctx.last_armador_nome ?? null,\n        lastClienteNome: ctx.last_cliente_nome ?? null,\n        updatedAt: ctx.updated_at ?? null,\n      },\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "3847ee90-594a-4f98-8457-11a2be2ef47d",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH c AS (\n  SELECT\n    numero,\n    last_protocolo,\n    last_bl_codigo,\n    last_solicitacao_id,\n    last_situacao,\n    last_armador_nome,\n    last_cliente_nome,\n    updated_at\n  FROM public.n8n_agendamento_contexto\n  WHERE numero = '{{ $json.numero }}'\n  LIMIT 1\n)\nSELECT\n  COALESCE(numero, '{{ $json.numero }}') AS numero,\n  last_protocolo,\n  last_bl_codigo,\n  last_solicitacao_id,\n  last_situacao,\n  last_armador_nome,\n  last_cliente_nome,\n  updated_at\nFROM c\n\nUNION ALL\n\nSELECT\n  '{{ $json.numero }}' AS numero,\n  NULL AS last_protocolo,\n  NULL AS last_bl_codigo,\n  NULL::bigint AS last_solicitacao_id,\n  NULL AS last_situacao,\n  NULL AS last_armador_nome,\n  NULL AS last_cliente_nome,\n  now() AS updated_at\nWHERE NOT EXISTS (SELECT 1 FROM c);\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "69f8cf42-c4f9-488c-aa83-1bb33e9d0ed2",
+      "name": "carregar contexto",
+      "credentials": {
+        "postgres": {
+          "id": "3ttLVtQJD3DGjvw9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO public.n8n_agendamento_contexto\n(\n  numero,\n  last_protocolo,\n  last_bl_codigo,\n  last_solicitacao_id,\n  last_situacao,\n  last_armador_nome,\n  last_cliente_nome,\n  updated_at\n)\nVALUES\n(\n  '{{ $json.numero }}',\n\n  NULLIF(NULLIF(TRIM('{{ $json.protocolo ?? \"\" }}'), ''), 'undefined'),\n  NULLIF(NULLIF(TRIM('{{ $json.blCodigo ?? \"\" }}'), ''), 'undefined'),\n\n  CASE\n    WHEN NULLIF(NULLIF(TRIM('{{ $json.solicitacaoId ?? \"\" }}'), ''), 'undefined') ~ '^[0-9]+$'\n      THEN (TRIM('{{ $json.solicitacaoId }}'))::bigint\n    ELSE NULL\n  END,\n\n  NULLIF(NULLIF(TRIM('{{ $json.situacao ?? \"\" }}'), ''), 'undefined'),\n  NULLIF(NULLIF(TRIM('{{ $json.armadorNome ?? \"\" }}'), ''), 'undefined'),\n  NULLIF(NULLIF(TRIM('{{ $json.clienteNome ?? \"\" }}'), ''), 'undefined'),\n\n  now()\n)\nON CONFLICT (numero)\nDO UPDATE SET\n  last_protocolo      = COALESCE(EXCLUDED.last_protocolo, public.n8n_agendamento_contexto.last_protocolo),\n  last_bl_codigo      = COALESCE(EXCLUDED.last_bl_codigo, public.n8n_agendamento_contexto.last_bl_codigo),\n  last_solicitacao_id = COALESCE(EXCLUDED.last_solicitacao_id, public.n8n_agendamento_contexto.last_solicitacao_id),\n  last_situacao       = COALESCE(EXCLUDED.last_situacao, public.n8n_agendamento_contexto.last_situacao),\n  last_armador_nome   = COALESCE(EXCLUDED.last_armador_nome, public.n8n_agendamento_contexto.last_armador_nome),\n  last_cliente_nome   = COALESCE(EXCLUDED.last_cliente_nome, public.n8n_agendamento_contexto.last_cliente_nome),\n  updated_at          = now();\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2112,
+        0
+      ],
+      "id": "1c4c4b3e-af68-4642-aa0f-e37fe066477f",
+      "name": "salvar contexto",
+      "credentials": {
+        "postgres": {
+          "id": "3ttLVtQJD3DGjvw9",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0d43a7ec-3f8e-47aa-ad84-784fcc289324",
+              "leftValue": "={{ $json.chatInput }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1152,
+        0
+      ],
+      "id": "192afc36-2dda-4864-9878-0d42a4911324",
+      "name": "If"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Buscar Agendamentos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Criar Agendamentos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancelar Agendamentos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "salvar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        []
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "carregar contexto": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "salvar contexto": {
+      "main": [
+        [
+          {
+            "node": "Enviar texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "carregar contexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar texto": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "6bf4987c-0fcd-4d63-bd06-4cfe4a37b332",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e52b1ba4fdf9006a16a1428d16959862c264a5597d143a5704c980b4bf5d4d6a"
+  },
+  "id": "gU_gpcoElkRvh6bti-nAD",
+  "tags": []
+}
