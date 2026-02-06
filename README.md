@@ -1,12 +1,12 @@
-# 🤖 AI-Agent-SQLServer
+# AI-Agent-SQLServer
 
 Agente de IA conectado ao SQL Server para consultas de agendamentos.
 
 ---
 
-## 📌 Sobre o Projeto
+##  Sobre o Projeto
 
-Bem-vindo ao meu primeiro projeto de **AI Agent** 🚀
+Bem-vindo ao meu primeiro projeto de **AI Agent** 
 
 Este projeto consiste na criação de um **Agente de Inteligência Artificial** focado na consulta de agendamentos de uma empresa do setor de **Agenciamento Marítimo**.
 
@@ -21,11 +21,11 @@ A arquitetura foi construída utilizando:
 
 ---
 
-## 🐳 Instalação via Docker
+## 1 Instalação via Docker
 
 A forma mais fácil de executar o projeto é via **Docker Compose**.
 
-### 1️⃣ Pré-requisitos
+### Pré-requisitos
 
 Antes de iniciar, instale:
 
@@ -34,7 +34,7 @@ Antes de iniciar, instale:
 
 ---
 
-### 2️⃣ Baixar arquivos do projeto
+### 2️ Baixar arquivos do projeto
 
 Baixe os arquivos:
 
@@ -45,16 +45,16 @@ Coloque ambos na mesma pasta.
 
 ---
 
-### 3️⃣ Subir os containers
+### 3️ Subir os containers
 
 Abra o **PowerShell** (ou terminal) dentro da pasta onde estão os arquivos e execute:
 
 ```bash
-docker compose up -d
+docker compose up
 
 
 
-🌐 Acessos do Ambiente
+ Acessos do Ambiente
 
 Após subir os serviços, acesse:
 
@@ -63,7 +63,7 @@ n8n	http://localhost:5678
 	Criação e configuração dos workflows
 Evolution API	http://localhost:8080
 	API para WhatsApp e integrações
-⚙️ Configuração do n8n
+  Configuração do n8n
 
 Ao acessar o n8n pela primeira vez:
 
@@ -75,9 +75,9 @@ Você receberá uma KEY de ativação.
 
 Insira a KEY para liberar os Community Nodes.
 
-Ambiente pronto para uso ✅
+Ambiente pronto para uso 
 
-📲 Configuração da Evolution API (WhatsApp)
+ Configuração da Evolution API (WhatsApp)
 
 Para conectar:
 
@@ -89,9 +89,9 @@ Gere o QR Code.
 
 Escaneie no WhatsApp.
 
-Conexão concluída ✅
-
-🔗 Integração Evolution API → n8n
+Conexão concluída
+ 
+Integração Evolution API → n8n
 
 Passos:
 
@@ -100,41 +100,28 @@ Crie um node Webhook no n8n.
 Defina um path.
 
 Exemplo:
-
 /webhook/whatsapp-agent
-
 
 Configure na Evolution API:
 
 http://n8n:5678/webhook/whatsapp-agent
 
-
 Ative o workflow.
 
-🧠 Funcionalidades do Agente
+Funcionalidades do Agente:
 
 Consulta de agendamentos via linguagem natural
-
 Integração com SQL Server
-
 Respostas automatizadas via WhatsApp
-
 Memória de contexto (quando configurado)
-
 Automação de fluxos operacionais
 
-🛠️ Tecnologias Utilizadas
+Tecnologias Utilizadas:
 
 n8n
-
 SQL Server
-
 Evolution API
-
 Docker
-
 IA / LLMs
-
 Webhooks
-
 APIs REST
