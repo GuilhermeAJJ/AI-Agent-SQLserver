@@ -115,8 +115,8 @@ services:
       - "1435:1433"
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_PID: "Developer"
-      SA_PASSWORD: "141531jrJ@"
+      MSSQL_PID: "teste"
+      SA_PASSWORD: "teste"
     volumes:
       - sqlserver_data:/var/opt/mssql
       - ./backup:/var/opt/mssql/backup
